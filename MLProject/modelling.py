@@ -42,14 +42,16 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         mlflow.log_param("model_type", "RandomForest")
         mlflow.log_param("smote", True)
         mlflow.log_param("n_estimators", n_estimators)
-
         mlflow.log_metric("accuracy", model.score(X_test, y_test))
 
-        # Save model
+        # Save as .pkl for external use (like Google Drive)
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke: {model_output}")
 
-        # Log model ke MLflow
+        # Log model.pkl ke MLflow artifacts
+        mlflow.log_artifact(model_output)
+
+        # Log MLflow model format (for Docker & serving)
         input_example = X_test.iloc[:5]
         mlflow.sklearn.log_model(model, "model", input_example=input_example)
 
