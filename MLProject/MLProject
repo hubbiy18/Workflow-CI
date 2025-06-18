@@ -1,4 +1,5 @@
-name: diabetes-mlflow
+name: mlflow-diabetes-project
+
 conda_env: conda.yaml
 
 entry_points:
