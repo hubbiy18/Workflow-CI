@@ -5,31 +5,29 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 def upload_to_gdrive(file_path):
-    SCOPES = ['https://www.googleapis.com/auth/drive.file']
-    SERVICE_ACCOUNT_FILE = 'credentials.json'
-
     credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        "credentials.json",
+        scopes=["https://www.googleapis.com/auth/drive.file"]
     )
 
-    service = build('drive', 'v3', credentials=credentials)
+    service = build("drive", "v3", credentials=credentials)
 
-    file_metadata = {'name': os.path.basename(file_path)}
+    file_metadata = {
+        "name": os.path.basename(file_path)
+    }
     media = MediaFileUpload(file_path, resumable=True)
-    
-    file = service.files().create(
-        body=file_metadata, media_body=media, fields='id'
-    ).execute()
+    file = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
 
-    print(f"Uploaded file ID: {file.get('id')}")
+    print(f"File uploaded to Google Drive with ID: {file.get('id')}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python upload_to_gdrive.py path/to/model.pkl")
+        print("Usage: python upload_to_gdrive.py <file_path>")
         sys.exit(1)
 
     model_path = sys.argv[1]
     if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model not found: {model_path}")
-    
+        print(f"Model file not found at: {model_path}")
+        sys.exit(1)
+
     upload_to_gdrive(model_path)
