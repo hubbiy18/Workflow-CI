@@ -22,7 +22,7 @@ jobs:
           activate-environment: mlflow-env
           auto-activate-base: false
 
-      - name: Install MLflow and dependencies
+      - name: Install Python dependencies
         run: |
           pip install mlflow scikit-learn imbalanced-learn pandas joblib google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
@@ -36,14 +36,14 @@ jobs:
         run: |
           RUN_ID=$(ls -td MLProject/mlruns/0/* | head -1 | xargs -n 1 basename)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "run_id: $RUN_ID"
+
+      - name: Save GDrive credentials
+        run: |
+          echo "${{ secrets.GDRIVE_CREDENTIALS }}" > credentials.json
 
       - name: Upload model to Google Drive
-        uses: gautamkrishnar/action-google-drive@v1.0.2
-        with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          folderId: your_google_drive_folder_id
-          filename: MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model/model.pkl
+        run: |
+          python upload_to_gdrive.py ${{ env.RUN_ID }}
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
