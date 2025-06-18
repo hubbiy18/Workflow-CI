@@ -1,7 +1,9 @@
-name: mlflow-diabetes-project
+name: diabetes-pipeline
 
 conda_env: conda.yaml
 
 entry_points:
   main:
-    command: "python modelling.py"
+    parameters:
+      n_estimators: {type: int, default: 100}
+    command: "python modelling.py --n_estimators {n_estimators}"
