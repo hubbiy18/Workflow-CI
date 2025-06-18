@@ -1,18 +1,14 @@
-name: MLflow CI Pipeline
+name: MLflow Training
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    paths:
+      - 'MLProject/**'
+      - '.github/workflows/mlflow_ci.yaml'
 
 jobs:
-  mlflow-train-upload:
+  train-model:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: MLProject
 
     steps:
     - name: Checkout repository
@@ -25,26 +21,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r ../requirements.txt || true  # optional
-        pip install pandas scikit-learn mlflow google-api-python-client google-auth
+        cd MLProject
+        pip install -r <(conda env export --from-history | grep -v "^prefix:")
 
     - name: Run MLflow model training
       run: |
+        cd MLProject
         mlflow run . --env-manager=local
-
-    - name: Get latest run ID
-      id: get_run_id
-      run: |
-        RUN_ID=$(ls -td mlruns/0/* | head -1 | xargs -n 1 basename)
-        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-
-    - name: Copy model to root for upload
-      run: |
-        cp "mlruns/0/$RUN_ID/artifacts/model/model.pkl" model.pkl
-
-    - name: Upload to Google Drive
-      run: |
-        python upload_to_gdrive.py
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
+        MLFLOW_EXPERIMENT_NAME: "Diabetes Prediction"
