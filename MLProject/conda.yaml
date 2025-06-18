@@ -2,11 +2,10 @@ name: mlflow-env
 channels:
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.12
+  - pandas
+  - scikit-learn
   - pip
   - pip:
       - mlflow
-      - scikit-learn
-      - pandas
-      - imbalanced-learn
       - joblib
