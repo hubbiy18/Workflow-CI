@@ -1,49 +1,32 @@
-import pandas as pd
-import numpy as np
 import mlflow
 import mlflow.sklearn
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-import joblib
+import os
 
 def main():
-    # Mulai experiment MLflow
-    mlflow.start_run()
-
-    # Load dataset
     df = pd.read_csv("diabetes_cleaned.csv")
+    
+    if "diabetes" not in df.columns:
+        raise ValueError("Kolom 'diabetes' tidak ditemukan di dataset")
 
-    # Pisahkan fitur dan target
     X = df.drop("diabetes", axis=1)
     y = df["diabetes"]
 
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y)
 
-    # Inisialisasi model
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    model = RandomForestClassifier()
+    model.fit(X_train, y_train)
 
-    # Train model
-    clf.fit(X_train, y_train)
+    with mlflow.start_run() as run:
+        # Log model ke MLflow
+        mlflow.sklearn.log_model(model, "model")
 
-    # Prediksi
-    y_pred = clf.predict(X_test)
+        # Simpan model secara lokal juga, untuk docker build
+        mlflow.sklearn.save_model(model, "MLProject/model")
 
-    # Hitung akurasi
-    accuracy = accuracy_score(y_test, y_pred)
-
-    # Logging ke MLflow
-    mlflow.log_param("n_estimators", 100)
-    mlflow.log_param("random_state", 42)
-    mlflow.log_metric("accuracy", accuracy)
-
-    # Simpan model
-    joblib.dump(clf, "model.pkl")
-    mlflow.log_artifact("model.pkl", artifact_path="model")
-
-    # Akhiri run
-    mlflow.end_run()
+        print("Run ID:", run.info.run_id)
 
 if __name__ == "__main__":
     main()
