@@ -22,7 +22,7 @@ jobs:
           activate-environment: mlflow-env
           auto-activate-base: false
 
-      - name: Install additional dependencies
+      - name: Install MLflow and dependencies
         run: |
           pip install mlflow scikit-learn imbalanced-learn pandas joblib
 
