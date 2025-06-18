@@ -1,58 +1,41 @@
+# modelling.py
 import pandas as pd
 import numpy as np
-import mlflow
-import mlflow.sklearn
 import os
 import joblib
-
+import mlflow
+import mlflow.sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score
 
 def main():
-    # Set experiment
+    # Logging setup
+    mlflow.set_tracking_uri("file:///" + os.path.abspath("mlruns"))
     mlflow.set_experiment("Diabetes Prediction")
 
-    # Start MLflow run
     with mlflow.start_run():
-        # Load dataset
-        df = pd.read_csv("diabetes_cleaned.csv")
-
-        # Pisahkan fitur dan label
+        # Load data
+        df = pd.read_csv("../diabetes_cleaned.csv") if os.path.exists("../diabetes_cleaned.csv") else pd.read_csv("diabetes_cleaned.csv")
         X = df.drop("diabetes", axis=1)
         y = df["diabetes"]
 
-        # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-        # Inisialisasi dan latih model
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X_train, y_train)
 
-        # Prediksi dan evaluasi
+        # Evaluate
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
 
-        # Log parameter & metric
-        mlflow.log_param("n_estimators", 100)
+        # Log metrics and model
         mlflow.log_metric("accuracy", acc)
+        mlflow.sklearn.log_model(model, "model")
 
-        # Log model ke MLflow
-        mlflow.sklearn.log_model(model, artifact_path="model", registered_model_name="diabetes_rf_model")
-
-        # Simpan model.pkl ke local
-        joblib.dump(model, "model.pkl")
-
-        # Log file model.pkl juga sebagai artifact (untuk upload ke GDrive)
-        mlflow.log_artifact("model.pkl", artifact_path="model")
-
-        # Optional: log classification report sebagai txt
-        report = classification_report(y_test, y_pred)
-        with open("report.txt", "w") as f:
-            f.write(report)
-        mlflow.log_artifact("report.txt")
-
-        print("Model trained and logged to MLflow.")
+        # Save manually
+        os.makedirs("artifact/model", exist_ok=True)
+        joblib.dump(model, "artifact/model/model.pkl")
+        print("Model saved to artifact/model/model.pkl")
 
 if __name__ == "__main__":
     main()
