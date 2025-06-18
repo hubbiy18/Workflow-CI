@@ -17,47 +17,33 @@ jobs:
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v2
         with:
-          auto-update-conda: true
           environment-file: MLProject/conda.yaml
           activate-environment: mlflow-env
           auto-activate-base: false
 
       - name: Install Python dependencies
         run: |
-          pip install mlflow scikit-learn imbalanced-learn pandas joblib \
-            google-api-python-client google-auth-httplib2 google-auth-oauthlib
+          pip install mlflow scikit-learn imbalanced-learn pandas joblib google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
       - name: Run MLflow Project
         run: |
           cd MLProject
           mlflow run . --env-manager=local
 
-      - name: Get latest MLflow run_id
-        id: get_run_id
-        run: |
-          RUN_ID=$(ls -td MLProject/mlruns/0/* | head -1 | xargs -n 1 basename)
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+      - name: Save GDrive credentials
+        run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" > MLProject/credentials.json
 
-      - name: Upload model.pkl to Google Drive
-        env:
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+      - name: Upload model to Google Drive
         run: |
-          MODEL_PATH="MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model/model.pkl"
-          if [ -f "$MODEL_PATH" ]; then
-            python upload_to_gdrive.py "$MODEL_PATH"
-          else
-            echo "model.pkl not found at $MODEL_PATH"
-            exit 1
-          fi
+          cd MLProject
+          python upload_to_gdrive.py model/model.pkl
 
-      - name: Log in to Docker Hub
+      - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build Docker Image
         run: |
-          mlflow models build-docker \
-            -m MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model \
-            -n ${{ secrets.DOCKER_USERNAME }}/mlflow-model:latest
+          mlflow models build-docker -m MLProject/model -n ${{ secrets.DOCKER_USERNAME }}/mlflow-model:latest
 
       - name: Push Docker Image
         run: |
