@@ -1,66 +1,53 @@
-name: CI MLflow Train
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+from imblearn.over_sampling import SMOTE
+import mlflow
+import mlflow.sklearn
+import joblib
 
-on:
-  push:
-    paths:
-      - 'MLProject/**'
-  workflow_dispatch:
+def main():
+    # Mulai tracking MLflow
+    mlflow.set_experiment("Diabetes Prediction")
+    with mlflow.start_run():
+        # Load dataset
+        df = pd.read_csv("diabetes_cleaned.csv")
 
-jobs:
-  train:
-    runs-on: ubuntu-latest
+        # Pastikan kolom target benar
+        if "diabetes" not in df.columns:
+            raise ValueError("Kolom target 'diabetes' tidak ditemukan.")
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+        # Split features and target
+        X = df.drop("diabetes", axis=1)
+        y = df["diabetes"]
 
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          environment-file: MLProject/conda.yaml
-          activate-environment: mlflow-env
-          auto-activate-base: false
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-      - name: Install Python dependencies
-        run: |
-          pip install mlflow scikit-learn imbalanced-learn pandas joblib \
-                      google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
+        # Handle class imbalance
+        smote = SMOTE(random_state=42)
+        X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
-      - name: Run MLflow Project
-        run: |
-          cd MLProject
-          mlflow run . --env-manager=local
+        # Train model
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+        model.fit(X_train_res, y_train_res)
 
-      - name: Get latest MLflow run_id
-        id: get_run_id
-        run: |
-          RUN_ID=$(ls -td MLProject/mlruns/0/* | head -1 | xargs -n 1 basename)
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+        # Predict and evaluate
+        y_pred = model.predict(X_test)
+        acc = accuracy_score(y_test, y_pred)
+        report = classification_report(y_test, y_pred)
 
-      - name: Check model artifact existence
-        run: |
-          MODEL_PATH="MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model/model.pkl"
-          if [ ! -f "$MODEL_PATH" ]; then
-            echo "Model artifact not found at $MODEL_PATH"
-            exit 1
-          fi
+        # Logging
+        mlflow.log_param("n_estimators", 100)
+        mlflow.log_metric("accuracy", acc)
 
-      - name: Save GDrive credentials
-        run: |
-          echo '${{ secrets.GDRIVE_CREDENTIALS }}' > credentials.json
+        # Print report
+        print("Classification Report:\n", report)
 
-      - name: Upload model to Google Drive
-        run: |
-          python MLProject/upload_to_gdrive.py "MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model/model.pkl"
+        # Simpan model
+        joblib.dump(model, "model.pkl")
+        mlflow.sklearn.log_model(model, "model")
 
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-      - name: Build Docker Image from MLflow Model
-        run: |
-          mlflow models build-docker -m "MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model" -n ${{ secrets.DOCKER_USERNAME }}/mlflow-model:latest
-
-      - name: Push Docker Image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/mlflow-model:latest
+if __name__ == "__main__":
+    main()
