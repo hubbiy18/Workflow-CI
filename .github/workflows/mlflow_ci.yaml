@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  mlflow-train-upload:
+  mlflow-train-upload-docker:
     runs-on: ubuntu-latest
 
     defaults:
@@ -26,14 +26,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r ../requirements.txt || true  # optional
-        pip install pandas scikit-learn mlflow google-api-python-client google-auth
+        pip install pandas scikit-learn mlflow imbalanced-learn google-api-python-client google-auth joblib
 
     - name: Run MLflow model training
       run: |
         mlflow run . --env-manager=local
 
-    - name: Get latest run ID
+    - name: Get latest MLflow run ID
       id: get_run_id
       run: |
         RUN_ID=$(ls -td mlruns/0/* | head -1 | xargs -n 1 basename)
@@ -43,8 +42,23 @@ jobs:
       run: |
         cp "mlruns/0/$RUN_ID/artifacts/model/model.pkl" model.pkl
 
-    - name: Upload to Google Drive
-      run: |
-        python upload_to_gdrive.py
+    - name: Save GDrive credentials to file
+      run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" > gdrive_credentials.json
+
+    - name: Upload model to Google Drive
+      run: python upload_to_gdrive.py
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
+
+    - name: Build Docker model from MLflow
+      run: |
+        mlflow models build-docker -m "mlruns/0/$RUN_ID/artifacts/model" -n diabetes-model
+
+    - name: Log in to Docker Hub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    - name: Tag Docker Image
+      run: docker tag diabetes-model ${{ secrets.DOCKER_USERNAME }}/diabetes-model:latest
+
+    - name: Push Docker Image
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/diabetes-model:latest
