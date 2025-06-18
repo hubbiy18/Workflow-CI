@@ -27,14 +27,12 @@ jobs:
         auto-activate-base: false
         auto-update-conda: true
 
-    - name: Install additional dependencies
+    - name: Install MLflow and others
       shell: bash -l {0}
       run: |
-        pip install mlflow
+        pip install mlflow imbalanced-learn joblib scikit-learn pandas
 
     - name: Run MLflow project
       shell: bash -l {0}
       working-directory: MLProject
-      run: |
-        echo "Starting MLflow project run..."
-        mlflow run . --no-conda
+      run: mlflow run . --no-conda
