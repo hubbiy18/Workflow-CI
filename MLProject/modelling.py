@@ -1,42 +1,66 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-import mlflow
-import mlflow.sklearn
-import os
-import joblib
+name: CI MLflow Train
 
-def main():
-    df = pd.read_csv("diabetes_cleaned.csv")
+on:
+  push:
+    paths:
+      - 'MLProject/**'
+  workflow_dispatch:
 
-    if "diabetes" not in df.columns:
-        raise ValueError("Kolom 'diabetes' tidak ditemukan!")
+jobs:
+  train:
+    runs-on: ubuntu-latest
 
-    X = df.drop("diabetes", axis=1)
-    y = df["diabetes"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          environment-file: MLProject/conda.yaml
+          activate-environment: mlflow-env
+          auto-activate-base: false
 
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+      - name: Install Python dependencies
+        run: |
+          pip install mlflow scikit-learn imbalanced-learn pandas joblib \
+                      google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
-    with mlflow.start_run() as run:
-        mlflow.log_param("model_type", "RandomForest")
-        mlflow.log_param("n_estimators", 100)
-        mlflow.log_metric("train_score", model.score(X_train, y_train))
-        mlflow.log_metric("test_score", model.score(X_test, y_test))
+      - name: Run MLflow Project
+        run: |
+          cd MLProject
+          mlflow run . --env-manager=local
 
-        # Log artifact model
-        mlflow.sklearn.log_model(model, artifact_path="model")
+      - name: Get latest MLflow run_id
+        id: get_run_id
+        run: |
+          RUN_ID=$(ls -td MLProject/mlruns/0/* | head -1 | xargs -n 1 basename)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-        # Simpan model.pkl ke disk (untuk upload ke Google Drive)
-        os.makedirs("model", exist_ok=True)
-        joblib.dump(model, "model/model.pkl")
+      - name: Check model artifact existence
+        run: |
+          MODEL_PATH="MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model/model.pkl"
+          if [ ! -f "$MODEL_PATH" ]; then
+            echo "Model artifact not found at $MODEL_PATH"
+            exit 1
+          fi
 
-        # Log ke MLflow sebagai artifact manual juga
-        mlflow.log_artifact("model/model.pkl", artifact_path="model")
+      - name: Save GDrive credentials
+        run: |
+          echo '${{ secrets.GDRIVE_CREDENTIALS }}' > credentials.json
 
-if __name__ == "__main__":
-    main()
+      - name: Upload model to Google Drive
+        run: |
+          python MLProject/upload_to_gdrive.py "MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model/model.pkl"
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image from MLflow Model
+        run: |
+          mlflow models build-docker -m "MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model" -n ${{ secrets.DOCKER_USERNAME }}/mlflow-model:latest
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/mlflow-model:latest
