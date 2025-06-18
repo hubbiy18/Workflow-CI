@@ -14,17 +14,16 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Conda Environment
+      uses: mamba-org/setup-micromamba@v1
       with:
-        python-version: '3.12'
-
-    - name: Install dependencies
-      run: |
-        cd MLProject
-        pip install -r <(conda env export --from-history | grep -v "^prefix:")
+        environment-file: MLProject/conda.yaml
+        environment-name: mlflow-env
+        init-shell: bash
+        cache-environment: true
 
     - name: Run MLflow model training
+      shell: bash -l {0}
       run: |
         cd MLProject
         mlflow run . --env-manager=local
