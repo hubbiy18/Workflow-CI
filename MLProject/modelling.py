@@ -8,7 +8,7 @@ import mlflow.sklearn
 import joblib
 import argparse
 import os
-import sys # Tambahkan import ini untuk sys.exit
+import sys
 
 def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_model.pkl", n_estimators=100):
     mlflow.sklearn.autolog(disable=True)
@@ -36,10 +36,8 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
     )
 
     with mlflow.start_run() as run:
-        # Training
         model.fit(X_train_res, y_train_res)
 
-        # Prediksi
         y_pred = model.predict(X_test)
         acc = model.score(X_test, y_test)
 
@@ -53,35 +51,46 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_metric("accuracy", acc)
 
-        # Simpan model lokal (ini akan menyimpan rf_model.pkl di direktori kerja MLProject)
+        # Simpan model lokal
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
-        # Logging model dalam format MLflow (wajib artifact_path='model')
-        # PENTING: Tambahkan pengecekan dan error handling di sini
+        # --- PERUBAHAN PENTING DI SINI ---
+        # Dapatkan jalur absolut ke direktori artifacts dari run MLflow yang aktif
+        # Ini akan mengatasi masalah path relatif/izin.
         try:
+            artifact_uri = mlflow.active_run().info.artifact_uri
+            # Hapus skema 'file://' jika ada, karena kita ingin jalur file lokal
+            if artifact_uri.startswith("file://"):
+                base_artifact_path = artifact_uri[len("file://"):]
+            else:
+                base_artifact_path = artifact_uri
+            
+            # Tentukan jalur lengkap untuk direktori 'model' di dalam artifacts
+            model_mlflow_dir = os.path.join(base_artifact_path, "model")
+            
+            # Log model menggunakan jalur absolut
             mlflow.sklearn.log_model(
                 sk_model=model,
-                artifact_path="model",  # ini akan membuat mlruns/.../artifacts/model/
+                artifact_path="model", # Tetap "model" karena ini nama subdirektori di artifact URI
                 input_example=X_test.iloc[:5]
             )
             print("\nmlflow.sklearn.log_model berhasil mencatat model.")
-            
+            print(f"Model seharusnya berada di: {model_mlflow_dir}")
+
             # Verifikasi setelah log_model
-            model_artifact_full_path = os.path.join(mlflow.active_run().info.artifact_uri.replace("file://", ""), "model")
-            print(f"Memeriksa isi direktori model artifact: {model_artifact_full_path}")
-            if os.path.exists(model_artifact_full_path) and os.path.isdir(model_artifact_full_path):
-                print(f"Isi direktori '{model_artifact_full_path}':")
-                print(os.listdir(model_artifact_full_path))
-                if not any(f.endswith(".pkl") for f in os.listdir(model_artifact_full_path)):
-                    print("PERINGATAN: Tidak ada file .pkl yang ditemukan langsung di direktori model artifact. Mungkin berada di sub-direktori 'data/'.")
+            if os.path.exists(model_mlflow_dir) and os.path.isdir(model_mlflow_dir):
+                print(f"Isi direktori '{model_mlflow_dir}':")
+                print(os.listdir(model_mlflow_dir))
+                if not any(f.endswith(".pkl") or f == "MLmodel" for f in os.listdir(model_mlflow_dir)):
+                    print("PERINGATAN: Direktori model terlihat kosong atau tidak berisi file kunci.")
             else:
-                print("ERROR: Direktori 'model' tidak ditemukan setelah mlflow.sklearn.log_model.")
-                sys.exit(1) # Keluar dengan error jika direktori model tidak ditemukan
+                print(f"ERROR: Direktori 'model' ({model_mlflow_dir}) tidak ditemukan setelah mlflow.sklearn.log_model.")
+                sys.exit(1)
                 
         except Exception as e:
             print(f"\nERROR KRITIS: mlflow.sklearn.log_model GAGAL: {e}")
-            sys.exit(1) # Keluar dengan error jika log_model gagal
+            sys.exit(1)
 
         # Logging file .pkl juga sebagai artifact (ini menyalin rf_model.pkl ke artifacts/rf_model.pkl)
         mlflow.log_artifact(model_output)
