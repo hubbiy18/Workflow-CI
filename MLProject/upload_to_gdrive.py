@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 from google.oauth2 import service_account
@@ -5,38 +6,40 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 def upload_to_gdrive(file_path, folder_id):
-    credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File {file_path} tidak ditemukan.")
 
+    # Path kredensial dari environment variable
+    credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if not credentials_path or not os.path.exists(credentials_path):
-        raise ValueError("GDRIVE_CREDENTIALS secret not found or file missing!")
+        raise ValueError("File kredensial tidak ditemukan atau GOOGLE_APPLICATION_CREDENTIALS belum di-set.")
 
-    credentials = service_account.Credentials.from_service_account_file(
-        credentials_path,
-        scopes=["https://www.googleapis.com/auth/drive.file"]
-    )
+    # Autentikasi dengan Google Service Account
+    credentials = service_account.Credentials.from_service_account_file(credentials_path)
+    service = build('drive', 'v3', credentials=credentials)
 
-    service = build("drive", "v3", credentials=credentials)
-
+    # Siapkan file upload
     file_metadata = {
-        "name": os.path.basename(file_path),
-        "parents": [folder_id]
+        'name': os.path.basename(file_path),
+        'parents': [folder_id]
     }
-
     media = MediaFileUpload(file_path, resumable=True)
 
-    uploaded = service.files().create(
+    # Upload file
+    file = service.files().create(
         body=file_metadata,
         media_body=media,
-        fields="id"
+        fields='id'
     ).execute()
 
-    print(f"File uploaded successfully. File ID: {uploaded.get('id')}")
+    print(f"File berhasil di-upload ke Google Drive, file ID: {file.get('id')}")
 
 if __name__ == "__main__":
-    # Path relatif karena file ada di MLProject/
-    file_path = os.path.abspath("model.pkl")
+    if len(sys.argv) != 3:
+        print("Usage: python upload_to_gdrive.py <file_path> <folder_id>")
+        sys.exit(1)
 
-    # Ganti folder_id dengan folder Google Drive kamu
-    folder_id = "1tE5eCxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # <- Ganti dengan ID folder "MLflow_Models_Febie"
+    file_path = sys.argv[1]
+    folder_id = sys.argv[2]
 
     upload_to_gdrive(file_path, folder_id)
