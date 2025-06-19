@@ -58,19 +58,17 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
-        # --- PERBAIKAN UTAMA DI SINI ---
-        # 1. Gunakan mlflow.sklearn.save_model untuk menyimpan model ke direktori sementara.
-        #    Ini akan menciptakan struktur MLflow Model yang benar (MLmodel, conda.yaml, python_model.pkl).
-        # 2. Log direktori ini sebagai artifact.
+        # --- PERBAIKAN AKHIR DI SINI ---
+        # Gunakan mlflow.sklearn.save_model ke direktori sementara
+        # dan kemudian log direktori tersebut sebagai artifact.
 
         model_mlflow_artifact_name = "mlflow_sklearn_model" # Nama direktori di dalam artifacts
-        local_temp_model_dir = None
-
+        
         try:
             # Gunakan direktori sementara untuk menyimpan model dalam format MLflow
             with tempfile.TemporaryDirectory() as tmpdir:
                 local_temp_model_dir = os.path.join(tmpdir, model_mlflow_artifact_name)
-                # Tidak perlu os.makedirs, save_model akan membuatnya
+                # mlflow.sklearn.save_model akan membuat direktori ini jika belum ada
 
                 # Gunakan mlflow.sklearn.save_model untuk menyimpan model
                 mlflow.sklearn.save_model(
@@ -79,7 +77,7 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
                     conda_env={ # Pastikan environment sudah benar
                         "channels": ["defaults", "conda-forge"],
                         "dependencies": [
-                            f"python={sys.version_info.major}.{sys.version_info.minor}", # Versi mayor.minor
+                            f"python={sys.version_info.major}.{sys.version_info.minor}",
                             "pip",
                             {
                                 "pip": [
@@ -98,12 +96,14 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
                 print(f"\nModel MLflow sklearn format disimpan secara lokal di: {local_temp_model_dir}")
                 print(f"Isi dari {local_temp_model_dir}: {os.listdir(local_temp_model_dir)}")
                 
-                # Verifikasi isi direktori sementara
-                if not ("MLmodel" in os.listdir(local_temp_model_dir) and \
-                        ("python_model.pkl" in os.listdir(local_temp_model_dir) or \
-                         "model.pkl" in os.listdir(os.path.join(local_temp_model_dir, "data")))):
-                    print("PERINGATAN: Direktori model yang disimpan mungkin tidak lengkap!")
+                # Verifikasi kunci bahwa file MLmodel ada
+                if not "MLmodel" in os.listdir(local_temp_model_dir):
+                    print("ERROR: File 'MLmodel' tidak ditemukan di direktori model yang disimpan!")
                     sys.exit(1)
+                
+                # Cek keberadaan file model serialisasi, bisa python_model.pkl atau model.pkl
+                if not any(f.endswith(".pkl") for f in os.listdir(local_temp_model_dir)):
+                     print("PERINGATAN: Tidak ada file .pkl yang ditemukan langsung di direktori model. Ini mungkin normal jika ada sub-direktori 'data/'.")
 
 
                 # Log seluruh direktori yang baru dibuat sebagai artifact ke MLflow
@@ -119,7 +119,8 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
 
         except Exception as e:
             print(f"\nERROR KRITIS saat menyimpan/mencatat model MLflow format: {e}")
-            sys.exit(1)
+            sys.exit(1) # Keluar dengan error agar pipeline gagal
+
 
         # Logging file .pkl yang disimpan manual juga sebagai artifact (untuk GDrive)
         mlflow.log_artifact(model_output)
