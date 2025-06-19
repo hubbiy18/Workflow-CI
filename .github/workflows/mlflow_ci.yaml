@@ -44,12 +44,10 @@ jobs:
 
     - name: Copy rf_model.pkl to project root
       run: |
-        cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl ./model.pkl
+        cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl model.pkl
 
     - name: Decode and save GDrive credentials file
-      run: echo "$GDRIVE_CREDENTIALS" | base64 -d > gdrive_credentials.json
-      env:
-        GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+      run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
 
     - name: Upload model to Google Drive
       run: python upload_to_gdrive.py model.pkl $FOLDER_ID
