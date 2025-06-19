@@ -7,9 +7,10 @@ import mlflow
 import mlflow.sklearn
 import joblib
 import argparse
+import os
 
 def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_model.pkl", n_estimators=100):
-    # Nonaktifkan autolog agar kita log manual
+    # Nonaktifkan autolog agar log manual
     mlflow.sklearn.autolog(disable=True)
 
     # Baca dataset
@@ -25,7 +26,7 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    # SMOTE untuk data imbalance
+    # SMOTE untuk menangani data imbalance
     smote = SMOTE(random_state=42)
     X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
@@ -39,7 +40,7 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         n_estimators=n_estimators
     )
 
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
         # Training
         model.fit(X_train_res, y_train_res)
 
@@ -58,19 +59,24 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_metric("accuracy", acc)
 
-        # Simpan model secara lokal
+        # Simpan model lokal
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
-        # Logging model ke MLflow (gunakan `name=` untuk versi terbaru MLflow)
+        # Logging model dalam format MLflow (wajib artifact_path='model')
         mlflow.sklearn.log_model(
             sk_model=model,
-            name="model",  # menggantikan artifact_path
+            artifact_path="model",  # wajib untuk docker build
             input_example=X_test.iloc[:5]
         )
 
-        # Optional: log file .pkl juga ke MLflow artifacts (lokal)
+        # Logging file .pkl juga sebagai artifact
         mlflow.log_artifact(model_output)
+
+        # Debug: tampilkan isi artifact dir
+        artifacts_dir = os.path.join("mlruns", "0", run.info.run_id, "artifacts")
+        print("\nIsi direktori artifact:")
+        print(os.listdir(artifacts_dir))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
