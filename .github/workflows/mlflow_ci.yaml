@@ -39,9 +39,8 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: Copy model.pkl to root for upload
-      run: |
-        cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl ../model.pkl
+    - name: Copy rf_model.pkl to MLProject folder as model.pkl
+      run: cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl model.pkl
 
     - name: Save GDrive credentials file
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" > gdrive_credentials.json
@@ -49,7 +48,6 @@ jobs:
     - name: Upload model to Google Drive
       run: python upload_to_gdrive.py
       env:
-        GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
         GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
 
     - name: Build Docker image from MLflow model
