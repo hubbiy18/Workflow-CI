@@ -12,6 +12,7 @@ jobs:
 
     defaults:
       run:
+        shell: bash
         working-directory: MLProject
 
     env:
@@ -42,7 +43,7 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: Move model.pkl to root for GDrive upload
+    - name: Move model.pkl to root for upload
       run: mv rf_model.pkl model.pkl
 
     - name: Decode GDrive credentials
@@ -53,10 +54,13 @@ jobs:
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
 
+    - name: List model artifacts (debugging)
+      run: ls -R mlruns/0/${{ env.RUN_ID }}/artifacts
+
     - name: Build Docker image from MLflow model
       run: |
         mlflow models build-docker \
-          -m "MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model" \
+          -m "mlruns/0/${{ env.RUN_ID }}/artifacts/model" \
           -n diabetes-model
 
     - name: Login to Docker Hub
