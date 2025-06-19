@@ -36,25 +36,28 @@ jobs:
       run: python modelling.py
 
     - name: Get latest MLflow run ID
+      id: get_run_id
       run: |
         RUN_ID=$(ls -td mlruns/0/* | head -1 | xargs -n 1 basename)
-        echo "RUN_ID=${RUN_ID}" >> $GITHUB_ENV
+        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: Move local model.pkl to workspace root
+    - name: Move model.pkl to root for GDrive upload
       run: mv rf_model.pkl model.pkl
 
-    - name: Decode and save GDrive credentials file
+    - name: Decode GDrive credentials
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
 
-    - name: Upload model to Google Drive
+    - name: Upload model.pkl to Google Drive
       run: python upload_to_gdrive.py model.pkl $FOLDER_ID
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
 
     - name: Build Docker image from MLflow model
       run: |
-        mlflow models build-docker -m "mlruns/0/${{ env.RUN_ID }}/artifacts/model" -n diabetes-model
+        mlflow models build-docker \
+          -m "MLProject/mlruns/0/${{ env.RUN_ID }}/artifacts/model" \
+          -n diabetes-model
 
     - name: Login to Docker Hub
       run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
