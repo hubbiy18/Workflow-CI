@@ -59,24 +59,30 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_metric("accuracy", acc)
 
-        # Simpan model lokal
+        # Simpan model lokal (ini akan menyimpan rf_model.pkl di direktori kerja MLProject)
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
         # Logging model dalam format MLflow (wajib artifact_path='model')
+        # MLflow akan menyimpan file model serialisasi di dalam direktori 'model/' ini.
+        # Umumnya, untuk scikit-learn, file ini disebut 'python_model.pkl'.
         mlflow.sklearn.log_model(
             sk_model=model,
             artifact_path="model",  # wajib untuk docker build
             input_example=X_test.iloc[:5]
         )
 
-        # Logging file .pkl juga sebagai artifact
+        # Logging file .pkl juga sebagai artifact (ini menyalin rf_model.pkl ke artifacts/rf_model.pkl)
         mlflow.log_artifact(model_output)
 
         # Debug: tampilkan isi artifact dir
         artifacts_dir = os.path.join("mlruns", "0", run.info.run_id, "artifacts")
         print("\nIsi direktori artifact:")
         print(os.listdir(artifacts_dir))
+        # Jika Anda ingin melihat isi sub-direktori 'model', Anda bisa tambahkan:
+        # print(f"Isi direktori artifact/model:")
+        # print(os.listdir(os.path.join(artifacts_dir, 'model')))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
