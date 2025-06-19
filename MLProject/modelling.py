@@ -62,11 +62,12 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
-        # Logging model dalam format MLflow → untuk Docker image & deployment
+        # Logging model dalam format MLflow
         mlflow.sklearn.log_model(
             sk_model=model,
-            artifact_path="model",  # harus 'model' untuk kompatibilitas Docker
-            input_example=X_test.iloc[:5]
+            artifact_path="model",  # Wajib pakai nama 'model'
+            input_example=X_test.iloc[:5],
+            registered_model_name=None  # Optional, bisa dipakai kalau pakai model registry
         )
 
 if __name__ == "__main__":
