@@ -44,21 +44,28 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: List model artifacts (debugging)
+    # --- SANGAT PENTING: TAMBAHAN DEBUGGING UNTUK VERIFIKASI STRUKTUR ARTIFACTS ---
+    - name: Verify MLflow run structure and artifacts
       run: |
-        echo "--- Listing artifacts for run ID: ${{ env.RUN_ID }} ---"
-        ls -R mlruns/0/${{ env.RUN_ID }}/artifacts
-        echo "--- END OF ARTIFACTS LIST ---"
+        echo "--- Listing contents of mlruns/0/${{ env.RUN_ID }} ---"
+        ls -R mlruns/0/${{ env.RUN_ID }}
+        echo "--- End of mlruns/0/${{ env.RUN_ID }} contents ---"
+
+        echo "--- Listing contents of mlruns/0/${{ env.RUN_ID }}/artifacts ---"
+        ls -R mlruns/0/${{ env.RUN_ID }}/artifacts || echo "artifacts directory not found!"
+        echo "--- End of artifacts contents ---"
+
+        echo "--- Listing contents of mlruns/0/${{ env.RUN_ID }}/artifacts/model ---"
+        ls -R mlruns/0/${{ env.RUN_ID }}/artifacts/model || echo "model directory inside artifacts not found!"
+        echo "--- End of model contents ---"
+    # --- AKHIR DEBUGGING TAMBAHAN ---
+
 
     - name: Copy model file to root for GDrive upload
       run: |
-        # PERBAIKAN: Mengganti path.
-        # Menggunakan path untuk model 'rf_model.pkl' yang disimpan secara manual
-        # dan di-log sebagai artifact terpisah.
-        # Jika Anda masih mengalami 'No such file or directory' setelah ini,
-        # Anda MUTLAK harus memeriksa output dari step 'List model artifacts (debugging)'
-        # di atas untuk menemukan path yang benar di log GitHub Actions.
-        cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
+        # Path ini seharusnya sudah benar jika upload ke GDrive berhasil
+        # Berdasarkan output terakhir, ini berhasil.
+        cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl # Ganti ke rf_model.pkl jika itu yang berhasil diunggah
 
     - name: Decode GDrive credentials
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
@@ -70,6 +77,8 @@ jobs:
 
     - name: Build Docker image from MLflow model
       run: |
+        # Path yang ini *harus* menunjuk ke direktori 'model' yang dibuat oleh mlflow.sklearn.log_model
+        # Kita perlu memastikan direktori ini ada dan berisi MLmodel, conda.yaml, dll.
         mlflow models build-docker \
           -m "mlruns/0/${{ env.RUN_ID }}/artifacts/model" \
           -n diabetes-model
