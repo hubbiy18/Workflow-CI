@@ -13,10 +13,11 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: MLProject
+        working-directory: MLProject # Pastikan ini tetap MLProject
 
     env:
       FOLDER_ID: 1ctX93YMRqRLHd_OhJ32iA22wvDzBWEQY
+      MLFLOW_TRACKING_URI: ./mlruns # <<< TAMBAHKAN BARIS INI <<<
 
     steps:
     - name: Checkout repository
@@ -44,28 +45,24 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    # --- SANGAT PENTING: TAMBAHAN DEBUGGING UNTUK VERIFIKASI STRUKTUR ARTIFACTS ---
-    - name: Verify MLflow run structure and artifacts
+    # --- Ini harusnya sekarang menemukan direktori 'model' jika perbaikan berhasil ---
+    - name: List model artifacts (debugging)
       run: |
-        echo "--- Listing contents of mlruns/0/${{ env.RUN_ID }} ---"
-        ls -R mlruns/0/${{ env.RUN_ID }}
-        echo "--- End of mlruns/0/${{ env.RUN_ID }} contents ---"
-
-        echo "--- Listing contents of mlruns/0/${{ env.RUN_ID }}/artifacts ---"
-        ls -R mlruns/0/${{ env.RUN_ID }}/artifacts || echo "artifacts directory not found!"
-        echo "--- End of artifacts contents ---"
-
-        echo "--- Listing contents of mlruns/0/${{ env.RUN_ID }}/artifacts/model ---"
-        ls -R mlruns/0/${{ env.RUN_ID }}/artifacts/model || echo "model directory inside artifacts not found!"
-        echo "--- End of model contents ---"
-    # --- AKHIR DEBUGGING TAMBAHAN ---
-
+        echo "--- Listing artifacts for run ID: ${{ env.RUN_ID }} ---"
+        ls -R mlruns/0/${{ env.RUN_ID }}/artifacts
+        echo "--- END OF ARTIFACTS LIST ---"
 
     - name: Copy model file to root for GDrive upload
       run: |
-        # Path ini seharusnya sudah benar jika upload ke GDrive berhasil
-        # Berdasarkan output terakhir, ini berhasil.
-        cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl # Ganti ke rf_model.pkl jika itu yang berhasil diunggah
+        # Setelah perbaikan MLFLOW_TRACKING_URI, path ini seharusnya bekerja untuk
+        # model yang di-log oleh mlflow.sklearn.log_model
+        # Kita akan berasumsi 'model/python_model.pkl' adalah yang benar untuk build Docker.
+        # Jika Anda yakin ingin mengunggah rf_model.pkl ke GDrive, pertahankan itu.
+        cp mlruns/0/${{ env.RUN_ID }}/artifacts/model/python_model.pkl model.pkl # Coba ini lagi
+        # Jika `model/python_model.pkl` tidak ditemukan, coba:
+        # cp mlruns/0/${{ env.RUN_ID }}/artifacts/model/data/model.pkl model.pkl
+        # Atau jika Anda mengupload model yang di joblib.dump:
+        # cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
 
     - name: Decode GDrive credentials
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
@@ -77,8 +74,7 @@ jobs:
 
     - name: Build Docker image from MLflow model
       run: |
-        # Path yang ini *harus* menunjuk ke direktori 'model' yang dibuat oleh mlflow.sklearn.log_model
-        # Kita perlu memastikan direktori ini ada dan berisi MLmodel, conda.yaml, dll.
+        # Path ini harus menunjuk ke direktori 'model' yang dibuat oleh mlflow.sklearn.log_model
         mlflow models build-docker \
           -m "mlruns/0/${{ env.RUN_ID }}/artifacts/model" \
           -n diabetes-model
