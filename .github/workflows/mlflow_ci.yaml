@@ -34,7 +34,10 @@ jobs:
                     google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
     - name: Run MLflow training script
-      run: python modelling.py
+      run: |
+        python modelling.py
+        # Logging rf_model.pkl ke MLflow (wajib agar bisa build-docker)
+        mlflow log-artifact rf_model.pkl --artifact-path model
 
     - name: Get latest MLflow run ID
       id: get_run_id
