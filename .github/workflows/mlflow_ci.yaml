@@ -14,6 +14,9 @@ jobs:
       run:
         working-directory: MLProject
 
+    env:
+      FOLDER_ID: 1ctX93YMRqRLHd_OhJ32iA22wvDzBWEQY
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -39,14 +42,17 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: Copy rf_model.pkl to MLProject folder as model.pkl
-      run: cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl model.pkl
+    - name: Copy rf_model.pkl to project root
+      run: |
+        cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl ./model.pkl
 
-    - name: Save GDrive credentials file
-      run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" > gdrive_credentials.json
+    - name: Decode and save GDrive credentials file
+      run: echo "$GDRIVE_CREDENTIALS" | base64 -d > gdrive_credentials.json
+      env:
+        GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
 
     - name: Upload model to Google Drive
-      run: python upload_to_gdrive.py
+      run: python upload_to_gdrive.py model.pkl $FOLDER_ID
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
 
