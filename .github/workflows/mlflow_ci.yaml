@@ -52,12 +52,13 @@ jobs:
 
     - name: Copy model file to root for GDrive upload
       run: |
-        # PERBAIKAN: Mengganti path yang tidak ditemukan
-        # Mencoba path umum untuk model Scikit-learn yang di-log oleh MLflow.
-        # Jika ini masih gagal, periksa output dari step 'List model artifacts (debugging)'
-        # di atas dan gunakan path yang benar yang ditampilkan di sana.
-        # Kemungkinan lain adalah: cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
-        cp mlruns/0/${{ env.RUN_ID }}/artifacts/model/python_model.pkl model.pkl
+        # PERBAIKAN: Mengganti path.
+        # Menggunakan path untuk model 'rf_model.pkl' yang disimpan secara manual
+        # dan di-log sebagai artifact terpisah.
+        # Jika Anda masih mengalami 'No such file or directory' setelah ini,
+        # Anda MUTLAK harus memeriksa output dari step 'List model artifacts (debugging)'
+        # di atas untuk menemukan path yang benar di log GitHub Actions.
+        cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
 
     - name: Decode GDrive credentials
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
