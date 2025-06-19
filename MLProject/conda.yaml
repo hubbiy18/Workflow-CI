@@ -1,13 +1,16 @@
 name: diabetes-env
 channels:
   - defaults
-  - conda-forge
 dependencies:
   - python=3.12
-  - pip
-  - scikit-learn
   - pandas
-  - imbalanced-learn
+  - scikit-learn
+  - pip
   - pip:
       - mlflow
+      - imbalanced-learn
       - joblib
+      - google-api-python-client
+      - google-auth
+      - google-auth-httplib2
+      - google-auth-oauthlib
