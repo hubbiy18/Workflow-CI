@@ -42,9 +42,9 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: Copy rf_model.pkl to project root
+    - name: Move local model.pkl to workspace root
       run: |
-        cp mlruns/0/$RUN_ID/artifacts/rf_model.pkl model.pkl
+        mv rf_model.pkl model.pkl
 
     - name: Decode and save GDrive credentials file
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
