@@ -10,30 +10,24 @@ import argparse
 import os
 
 def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_model.pkl", n_estimators=100):
-    # Nonaktifkan autolog agar log manual
     mlflow.sklearn.autolog(disable=True)
 
-    # Baca dataset
     df = pd.read_csv(cleaned_filepath)
     df = df.astype({col: 'float64' for col in df.select_dtypes(include='int').columns})
 
-    # Pisahkan fitur dan label
     X = df.drop("diabetes", axis=1)
     y = df["diabetes"]
 
-    # Split data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    # SMOTE untuk menangani data imbalance
     smote = SMOTE(random_state=42)
     X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
     print("Distribusi label setelah SMOTE (training):")
     print(pd.Series(y_train_res).value_counts())
 
-    # Inisialisasi model
     model = RandomForestClassifier(
         random_state=42,
         class_weight='balanced',
@@ -41,10 +35,8 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
     )
 
     with mlflow.start_run() as run:
-        # Training
         model.fit(X_train_res, y_train_res)
 
-        # Prediksi
         y_pred = model.predict(X_test)
         acc = model.score(X_test, y_test)
 
@@ -53,7 +45,6 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         print("\nClassification Report:")
         print(classification_report(y_test, y_pred, digits=4))
 
-        # Logging parameter dan metric
         mlflow.log_param("model_type", "RandomForest")
         mlflow.log_param("smote", True)
         mlflow.log_param("n_estimators", n_estimators)
@@ -64,24 +55,41 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
         # Logging model dalam format MLflow (wajib artifact_path='model')
-        # MLflow akan menyimpan file model serialisasi di dalam direktori 'model/' ini.
-        # Umumnya, untuk scikit-learn, file ini disebut 'python_model.pkl'.
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="model",  # wajib untuk docker build
-            input_example=X_test.iloc[:5]
-        )
+        # Pastikan ini dijalankan dengan benar
+        try:
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="model",  # ini akan membuat mlruns/.../artifacts/model/
+                input_example=X_test.iloc[:5]
+            )
+            print("\nmlflow.sklearn.log_model berhasil mencatat model.")
+        except Exception as e:
+            print(f"\nERROR: mlflow.sklearn.log_model GAGAL: {e}")
+            # Anda bisa menambahkan sys.exit(1) di sini jika ingin pipeline gagal total
+            # sys.exit(1)
 
-        # Logging file .pkl juga sebagai artifact (ini menyalin rf_model.pkl ke artifacts/rf_model.pkl)
+        # Logging file .pkl juga sebagai artifact
         mlflow.log_artifact(model_output)
+        print(f"File {model_output} juga dicatat sebagai artifact.")
+
 
         # Debug: tampilkan isi artifact dir
         artifacts_dir = os.path.join("mlruns", "0", run.info.run_id, "artifacts")
-        print("\nIsi direktori artifact:")
-        print(os.listdir(artifacts_dir))
-        # Jika Anda ingin melihat isi sub-direktori 'model', Anda bisa tambahkan:
-        # print(f"Isi direktori artifact/model:")
-        # print(os.listdir(os.path.join(artifacts_dir, 'model')))
+        print("\nIsi direktori artifact setelah semua logging:")
+        try:
+            if os.path.exists(artifacts_dir):
+                print(os.listdir(artifacts_dir))
+                # Tambahan: Periksa isi direktori 'model' jika ada
+                model_artifact_path = os.path.join(artifacts_dir, "model")
+                if os.path.exists(model_artifact_path) and os.path.isdir(model_artifact_path):
+                    print(f"Isi direktori {model_artifact_path}:")
+                    print(os.listdir(model_artifact_path))
+                else:
+                    print(f"Direktori 'model' ({model_artifact_path}) tidak ditemukan di artifacts.")
+            else:
+                print(f"Direktori artifacts ({artifacts_dir}) tidak ditemukan.")
+        except Exception as e:
+            print(f"Error saat listing artifacts directory: {e}")
 
 
 if __name__ == "__main__":
