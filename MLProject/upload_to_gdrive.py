@@ -1,38 +1,35 @@
+import os
+import json
+import base64
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import os
 
-def upload_to_gdrive(file_path, folder_id=None):
-    # Cek file ada atau tidak
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File tidak ditemukan: {file_path}")
+def upload_to_gdrive(file_path, folder_id):
+    # 1. Ambil credential base64 dari environment variable
+    encoded_credentials = os.getenv("GDRIVE_CREDENTIALS")
 
-    # Load credentials
-    credentials = service_account.Credentials.from_service_account_file(
-        'gdrive_credentials.json',
-        scopes=['https://www.googleapis.com/auth/drive']
-    )
+    if not encoded_credentials:
+        raise ValueError("GDRIVE_CREDENTIALS secret not found!")
 
-    # Inisialisasi service Google Drive API
+    # 2. Decode dan simpan ke file sementara
+    decoded = base64.b64decode(encoded_credentials)
+    with open("gdrive_credentials.json", "wb") as f:
+        f.write(decoded)
+
+    # 3. Gunakan file tersebut untuk autentikasi
+    credentials = service_account.Credentials.from_service_account_file("gdrive_credentials.json")
     service = build('drive', 'v3', credentials=credentials)
 
-    # Metadata file
-    file_metadata = {'name': os.path.basename(file_path)}
-    if folder_id:
-        file_metadata['parents'] = [folder_id]
-
-    # Upload file
-    media = MediaFileUpload(file_path, resumable=True)
-    uploaded = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-
-    print(f"File berhasil diupload ke Google Drive! ID: {uploaded.get('id')}")
+    file_metadata = {
+        'name': os.path.basename(file_path),
+        'parents': [folder_id]
+    }
+    media = MediaFileUpload(file_path)
+    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+    print(f"File uploaded. ID: {file.get('id')}")
 
 if __name__ == "__main__":
-    # Ganti path di bawah sesuai lokasi file model.pkl hasil training
-    file_path = "model.pkl"  # atau "MLProject/model.pkl" jika path relatif
-
-    # Jika ingin upload ke folder tertentu di Google Drive, masukkan folder_id di sini:
-    folder_id = None  # Ganti misalnya: "1A2B3C4D5E6F..."
-
+    file_path = "model.pkl"  # Pastikan model.pkl sudah ada
+    folder_id = os.getenv("GDRIVE_FOLDER_ID")  # Simpan juga folder_id di GitHub secret (opsional)
     upload_to_gdrive(file_path, folder_id)
