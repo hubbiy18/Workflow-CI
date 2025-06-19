@@ -17,7 +17,7 @@ jobs:
 
     env:
       FOLDER_ID: 1ctX93YMRqRLHd_OhJ32iA22wvDzBWEQY
-      MLFLOW_TRACKING_URI: ./mlruns # Pertahankan ini
+      MLFLOW_TRACKING_URI: ./mlruns
 
     steps:
     - name: Checkout repository
@@ -53,8 +53,6 @@ jobs:
 
     - name: Copy model file to root for GDrive upload
       run: |
-        # Mengunggah model yang di-dump oleh joblib (rf_model.pkl) ke GDrive.
-        # Ini adalah file yang berbeda dari model yang digunakan untuk Docker build.
         cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
 
     - name: Decode GDrive credentials
@@ -67,7 +65,6 @@ jobs:
 
     - name: Build Docker image from MLflow model
       run: |
-        # PENTING: Menunjuk ke direktori 'mlflow_sklearn_model' yang baru
         mlflow models build-docker \
           -m "runs:/${{ env.RUN_ID }}/mlflow_sklearn_model" \
           -n diabetes-model
