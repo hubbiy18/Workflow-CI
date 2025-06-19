@@ -1,4 +1,4 @@
-name: diabetes-classification
+name: diabetes-training
 
 conda_env: conda.yaml
 
