@@ -27,11 +27,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pandas scikit-learn mlflow imbalanced-learn joblib \
-                    google-api-python-client google-auth
+                    google-api-python-client google-auth google-auth-oauthlib
 
     - name: Run MLflow training pipeline
       run: |
-        mlflow run . --env-manager=local
+        python modelling.py
 
     - name: Get latest MLflow run ID
       id: get_run_id
@@ -41,7 +41,7 @@ jobs:
 
     - name: Copy model.pkl to root for upload
       run: |
-        cp "mlruns/0/$RUN_ID/artifacts/rf_model.pkl" model.pkl
+        cp "mlruns/0/$RUN_ID/artifacts/model/model.pkl" ../model.pkl
 
     - name: Save GDrive credentials file
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" > gdrive_credentials.json
@@ -63,4 +63,3 @@ jobs:
 
     - name: Push Docker image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/diabetes-model:latest
-
