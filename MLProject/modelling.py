@@ -58,20 +58,19 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_metric("accuracy", acc)
 
-        # Simpan model sebagai file lokal (.pkl)
+        # Simpan model secara lokal
         joblib.dump(model, model_output)
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
-        # Log file .pkl sebagai artifact manual (wajib agar MLflow build-docker tidak error)
-        mlflow.log_artifact(model_output, artifact_path="model")
-
-        # Logging model dalam format MLflow
+        # Logging model ke MLflow (gunakan `name=` untuk versi terbaru MLflow)
         mlflow.sklearn.log_model(
             sk_model=model,
-            artifact_path="model",
-            input_example=X_test.iloc[:5],
-            registered_model_name=None
+            name="model",  # menggantikan artifact_path
+            input_example=X_test.iloc[:5]
         )
+
+        # Optional: log file .pkl juga ke MLflow artifacts (lokal)
+        mlflow.log_artifact(model_output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
