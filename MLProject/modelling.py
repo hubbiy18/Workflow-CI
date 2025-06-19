@@ -8,6 +8,7 @@ import mlflow.sklearn
 import joblib
 import argparse
 import os
+import sys # Tambahkan import ini untuk sys.exit
 
 def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_model.pkl", n_estimators=100):
     mlflow.sklearn.autolog(disable=True)
@@ -35,8 +36,10 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
     )
 
     with mlflow.start_run() as run:
+        # Training
         model.fit(X_train_res, y_train_res)
 
+        # Prediksi
         y_pred = model.predict(X_test)
         acc = model.score(X_test, y_test)
 
@@ -55,7 +58,7 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         print(f"\nModel disimpan ke file lokal: {model_output}")
 
         # Logging model dalam format MLflow (wajib artifact_path='model')
-        # Pastikan ini dijalankan dengan benar
+        # PENTING: Tambahkan pengecekan dan error handling di sini
         try:
             mlflow.sklearn.log_model(
                 sk_model=model,
@@ -63,29 +66,33 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
                 input_example=X_test.iloc[:5]
             )
             print("\nmlflow.sklearn.log_model berhasil mencatat model.")
+            
+            # Verifikasi setelah log_model
+            model_artifact_full_path = os.path.join(mlflow.active_run().info.artifact_uri.replace("file://", ""), "model")
+            print(f"Memeriksa isi direktori model artifact: {model_artifact_full_path}")
+            if os.path.exists(model_artifact_full_path) and os.path.isdir(model_artifact_full_path):
+                print(f"Isi direktori '{model_artifact_full_path}':")
+                print(os.listdir(model_artifact_full_path))
+                if not any(f.endswith(".pkl") for f in os.listdir(model_artifact_full_path)):
+                    print("PERINGATAN: Tidak ada file .pkl yang ditemukan langsung di direktori model artifact. Mungkin berada di sub-direktori 'data/'.")
+            else:
+                print("ERROR: Direktori 'model' tidak ditemukan setelah mlflow.sklearn.log_model.")
+                sys.exit(1) # Keluar dengan error jika direktori model tidak ditemukan
+                
         except Exception as e:
-            print(f"\nERROR: mlflow.sklearn.log_model GAGAL: {e}")
-            # Anda bisa menambahkan sys.exit(1) di sini jika ingin pipeline gagal total
-            # sys.exit(1)
+            print(f"\nERROR KRITIS: mlflow.sklearn.log_model GAGAL: {e}")
+            sys.exit(1) # Keluar dengan error jika log_model gagal
 
-        # Logging file .pkl juga sebagai artifact
+        # Logging file .pkl juga sebagai artifact (ini menyalin rf_model.pkl ke artifacts/rf_model.pkl)
         mlflow.log_artifact(model_output)
         print(f"File {model_output} juga dicatat sebagai artifact.")
 
-
-        # Debug: tampilkan isi artifact dir
+        # Debug: tampilkan isi artifact dir utama
         artifacts_dir = os.path.join("mlruns", "0", run.info.run_id, "artifacts")
         print("\nIsi direktori artifact setelah semua logging:")
         try:
             if os.path.exists(artifacts_dir):
                 print(os.listdir(artifacts_dir))
-                # Tambahan: Periksa isi direktori 'model' jika ada
-                model_artifact_path = os.path.join(artifacts_dir, "model")
-                if os.path.exists(model_artifact_path) and os.path.isdir(model_artifact_path):
-                    print(f"Isi direktori {model_artifact_path}:")
-                    print(os.listdir(model_artifact_path))
-                else:
-                    print(f"Direktori 'model' ({model_artifact_path}) tidak ditemukan di artifacts.")
             else:
                 print(f"Direktori artifacts ({artifacts_dir}) tidak ditemukan.")
         except Exception as e:
