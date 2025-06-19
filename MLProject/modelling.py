@@ -6,7 +6,6 @@ from imblearn.over_sampling import SMOTE
 import mlflow
 import mlflow.sklearn
 import joblib
-import os
 import argparse
 
 def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_model.pkl", n_estimators=100):
@@ -59,19 +58,15 @@ def run_modelling(cleaned_filepath="diabetes_cleaned.csv", model_output="rf_mode
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_metric("accuracy", acc)
 
-        # Simpan model sebagai .pkl (untuk upload manual seperti ke GDrive)
+        # Simpan model sebagai file lokal (.pkl) → untuk keperluan manual (opsional)
         joblib.dump(model, model_output)
-        print(f"\nModel disimpan ke: {model_output}")
+        print(f"\nModel disimpan ke file lokal: {model_output}")
 
-        # Log model .pkl ke artifact biasa
-        mlflow.log_artifact(model_output)
-
-        # Log model dalam format MLflow (UNTUK Docker & model serving)
+        # Logging model dalam format MLflow → untuk Docker image & deployment
         mlflow.sklearn.log_model(
             sk_model=model,
-            artifact_path="model",
-            input_example=X_test.iloc[:5],  # contoh input
-            registered_model_name=None  # jika tidak perlu registrasi
+            artifact_path="model",  # harus 'model' untuk kompatibilitas Docker
+            input_example=X_test.iloc[:5]
         )
 
 if __name__ == "__main__":
