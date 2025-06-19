@@ -44,15 +44,10 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    - name: List specific run artifacts for debugging (optional, uncomment for verbose logs)
-      # Gunakan ini untuk memastikan nama file model yang benar
-      # run: |
-      #   ls -R mlruns/0/${{ env.RUN_ID }}/artifacts/
-
     - name: Copy model file to root for GDrive upload
       run: |
-        # Mengasumsikan mlflow.sklearn.log_model menyimpan model sebagai 'python_model.pkl'
-        # di dalam artifact_path 'model'. Jika output debug menunjukkan nama lain, sesuaikan.
+        # Perbaikan: Mengubah path dari 'model/data/model.pkl' menjadi 'model/python_model.pkl'
+        # Ini adalah lokasi default model yang dilog oleh mlflow.sklearn.log_model
         cp mlruns/0/${{ env.RUN_ID }}/artifacts/model/python_model.pkl model.pkl
 
     - name: Decode GDrive credentials
@@ -62,6 +57,9 @@ jobs:
       run: python upload_to_gdrive.py model.pkl $FOLDER_ID
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ./gdrive_credentials.json
+
+    - name: List model artifacts (debugging)
+      run: ls -R mlruns/0/${{ env.RUN_ID }}/artifacts
 
     - name: Build Docker image from MLflow model
       run: |
