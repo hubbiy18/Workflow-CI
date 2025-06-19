@@ -13,11 +13,11 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: MLProject # Pastikan ini tetap MLProject
+        working-directory: MLProject
 
     env:
       FOLDER_ID: 1ctX93YMRqRLHd_OhJ32iA22wvDzBWEQY
-      MLFLOW_TRACKING_URI: ./mlruns # <<< TAMBAHKAN BARIS INI <<<
+      MLFLOW_TRACKING_URI: ./mlruns # Pertahankan ini
 
     steps:
     - name: Checkout repository
@@ -45,7 +45,6 @@ jobs:
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         echo "Latest RUN_ID: $RUN_ID"
 
-    # --- Ini harusnya sekarang menemukan direktori 'model' jika perbaikan berhasil ---
     - name: List model artifacts (debugging)
       run: |
         echo "--- Listing artifacts for run ID: ${{ env.RUN_ID }} ---"
@@ -54,15 +53,9 @@ jobs:
 
     - name: Copy model file to root for GDrive upload
       run: |
-        # Setelah perbaikan MLFLOW_TRACKING_URI, path ini seharusnya bekerja untuk
-        # model yang di-log oleh mlflow.sklearn.log_model
-        # Kita akan berasumsi 'model/python_model.pkl' adalah yang benar untuk build Docker.
-        # Jika Anda yakin ingin mengunggah rf_model.pkl ke GDrive, pertahankan itu.
-        cp mlruns/0/${{ env.RUN_ID }}/artifacts/model/python_model.pkl model.pkl # Coba ini lagi
-        # Jika `model/python_model.pkl` tidak ditemukan, coba:
-        # cp mlruns/0/${{ env.RUN_ID }}/artifacts/model/data/model.pkl model.pkl
-        # Atau jika Anda mengupload model yang di joblib.dump:
-        # cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
+        # Mengunggah model yang di-dump oleh joblib (rf_model.pkl) ke GDrive.
+        # Ini adalah file yang berbeda dari model yang digunakan untuk Docker build.
+        cp mlruns/0/${{ env.RUN_ID }}/artifacts/rf_model.pkl model.pkl
 
     - name: Decode GDrive credentials
       run: echo "${{ secrets.GDRIVE_CREDENTIALS }}" | base64 --decode > gdrive_credentials.json
@@ -74,9 +67,9 @@ jobs:
 
     - name: Build Docker image from MLflow model
       run: |
-        # Path ini harus menunjuk ke direktori 'model' yang dibuat oleh mlflow.sklearn.log_model
+        # PENTING: Menunjuk ke direktori 'mlflow_sklearn_model' yang baru
         mlflow models build-docker \
-          -m "mlruns/0/${{ env.RUN_ID }}/artifacts/model" \
+          -m "runs:/${{ env.RUN_ID }}/mlflow_sklearn_model" \
           -n diabetes-model
 
     - name: Login to Docker Hub
