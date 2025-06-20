@@ -71,6 +71,7 @@ jobs:
           -n diabetes-model
 
     # Langkah baru untuk debugging: Mencari lokasi Dockerfile yang dihasilkan
+    # Perhatikan indentasi untuk setiap baris di bawah 'run: |'
     - name: Debug: List contents of current directory
       run: |
         echo "Listing contents of working directory: MLProject"
@@ -86,4 +87,3 @@ jobs:
 
     - name: Push Docker image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/diabetes-model:latest
-
