@@ -65,20 +65,9 @@ jobs:
 
     - name: Build Docker image from MLflow model
       run: |
-        # Perintah build-docker kembali ke bentuk aslinya tanpa opsi yang tidak didukung
         mlflow models build-docker \
           -m "runs:/${{ env.RUN_ID }}/mlflow_sklearn_model" \
           -n diabetes-model
-
-    # Langkah baru untuk debugging: Mencari lokasi Dockerfile yang dihasilkan
-    # BARIS 70 DIMULAI DI SINI (tergantung editor dan baris kosong)
-    - name: Debug: List contents of current directory
-      run: |
-        # Perhatikan: Setiap baris perintah di bawah 'run: |' harus dimulai dengan 8 SPASI dari margin kiri
-        echo "Listing contents of working directory: MLProject" # Contoh baris 72
-        ls -R                                                  # Contoh baris 73 (kemungkinan error L75)
-        echo "Searching for Dockerfile..."
-        find . -name "Dockerfile"
 
     - name: Login to Docker Hub
       run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
