@@ -65,12 +65,18 @@ jobs:
 
     - name: Build Docker image from MLflow model
       run: |
+        # Perintah build-docker tanpa opsi --enable-entrypoint-wrap atau --env
         mlflow models build-docker \
           -m "runs:/${{ env.RUN_ID }}/mlflow_sklearn_model" \
-          -n diabetes-model \
-          --enable-entrypoint-wrap \
-          --container-port 8000 \
-          --env "MLFLOW_LISTEN_HOST=0.0.0.0" # <--- PENAMBAHAN KRUSIAL DI SINI
+          -n diabetes-model
+
+    # Langkah baru untuk memodifikasi Dockerfile yang dihasilkan MLflow
+    - name: Modify generated Dockerfile to bind to 0.0.0.0
+      run: |
+        # Diasumsikan mlflow models build-docker membuat sub-direktori dengan nama image (-n)
+        # dan Dockerfile ada di dalamnya. Jika Dockerfile langsung di root,
+        # ganti 'diabetes-model/Dockerfile' menjadi 'Dockerfile'.
+        sed -i 's|--host 127.0.0.1|--host 0.0.0.0|g' diabetes-model/Dockerfile
 
     - name: Login to Docker Hub
       run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
