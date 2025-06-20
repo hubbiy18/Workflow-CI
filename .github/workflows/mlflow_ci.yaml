@@ -71,11 +71,12 @@ jobs:
           -n diabetes-model
 
     # Langkah baru untuk debugging: Mencari lokasi Dockerfile yang dihasilkan
-    # Perhatikan indentasi untuk setiap baris di bawah 'run: |'
+    # BARIS 70 DIMULAI DI SINI (tergantung editor dan baris kosong)
     - name: Debug: List contents of current directory
       run: |
-        echo "Listing contents of working directory: MLProject"
-        ls -R
+        # Perhatikan: Setiap baris perintah di bawah 'run: |' harus dimulai dengan 8 SPASI dari margin kiri
+        echo "Listing contents of working directory: MLProject" # Contoh baris 72
+        ls -R                                                  # Contoh baris 73 (kemungkinan error L75)
         echo "Searching for Dockerfile..."
         find . -name "Dockerfile"
 
